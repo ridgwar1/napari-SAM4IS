@@ -163,6 +163,7 @@ class SAMWidget(QWidget):
     def _on_image_layer_changed(self, set_image=False):
         print("image_layer_changed")
         if self.sam_predictor is not None:
+            set_image = True
             if (self._image_layer_selection.currentText() != "")&(self._image_layer_selection.currentText() in self._viewer.layers):
                 if (self._current_target_image_name != self._image_layer_selection.currentText()) or (set_image==True):
                     self._current_target_image_name = self._image_layer_selection.currentText()
@@ -246,7 +247,11 @@ class SAMWidget(QWidget):
             if self._shapes_layer_selection.currentText() != "":
                 output_layer = self._viewer.layers[self._shapes_layer_selection.currentText()]
                 if isinstance(output_layer, napari.layers.shapes.shapes.Shapes):
-                    output_layer.add_polygons(label2polygon(self._labels_layer.data), edge_width=6)
+                    get_poly = label2polygon(self._labels_layer.data)[0]
+                    get_poly = np.concatenate(
+                        (np.full((len(get_poly), 1), self._current_slice), get_poly), axis=1
+                    )
+                    output_layer.add_polygons([get_poly], edge_width=6)
                     self._viewer.layers.selection.active = self._sam_box_layer
                 else:
                     pass
@@ -294,7 +299,7 @@ class SAMWidget(QWidget):
             output_layer = self._viewer.layers[self._shapes_layer_selection.currentText()]
             if isinstance(output_layer, napari.layers.shapes.shapes.Shapes):
                 output_path = os.path.join(os.path.dirname(image_path), os.path.splitext(image_name)[0] + ".json")
-                data = create_json(image_layer.data, image_name, output_layer.data)
+                data = create_json(image_layer.data, image_name, output_layer.data, image_layer.metadata)
                 with open(output_path, 'w') as f:
                     json.dump(data, f)
                 print("saved")

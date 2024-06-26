@@ -106,27 +106,73 @@ def label2polygon(label):
     return polygons
 
 
-def create_json(image, name, data):
-    images = [
-        {
-            "file_name": name,
-            "height": image.shape[0],
-            "width": image.shape[1],
-            "id": 0
-        }
-    ]
-    annotations = []
-    for i, polygon in enumerate(data):
-        annotation = {
-            "id": i,
-            "image_id": 0,
-            "category_id": 0,
-            "segmentation": [polygon.flatten().tolist()[::-1]],
-            "area": np.count_nonzero(polygon2mask(image.shape, polygon)),
-            "bbox": [min(polygon[:, 1]), min(polygon[:, 0]), max(polygon[:, 1]) - min(polygon[:, 1]), max(polygon[:, 0]) - min(polygon[:, 0])],  # [x, y, width, height]
-            "iscrowd": 0
-        }
-        annotations.append(annotation)
+def create_json(image, name, data, metadata):
+    image_shape = image.shape
+    if image.ndim == 3:
+        image_shape = image_shape[1:]
+
+    if 'filenames' in metadata:
+        stacked = True
+    else:
+        stacked = False
+
+    if stacked:
+        images = []
+        unstacked_filenames = metadata["filenames"]
+        for idx in range(len(unstacked_filenames)):
+            image = {
+                "file_name": unstacked_filenames[idx],
+                "height": image_shape[0],
+                "width": image_shape[1],
+                "id": idx
+            }
+            images.append(image)
+
+        annotations = []
+        for i, polygon in enumerate(data):
+            image_slice = int(polygon[0][0]),
+            annotation = {
+                "id": i,
+                "image_id": image_slice[0][0],
+                "category_id": 0,
+                "segmentation": [polygon[:, 1:].flatten().tolist()[::-1]],
+                "area": np.count_nonzero(polygon2mask(image_shape, polygon[:, 1:])),
+                "bbox": [
+                    int(min(polygon[:, 1:][:, 1])),
+                    int(min(polygon[:, 1:][:, 0])),
+                    int(max(polygon[:, 1:][:, 1]) - min(polygon[:, 1:][:, 1])),
+                    int(max(polygon[:, 1:][:, 0]) - min(polygon[:, 1:][:, 0]))
+                ],  # [x, y, width, height]
+                "iscrowd": 0
+            }
+            annotations.append(annotation)
+    else:
+        images = [
+            {
+                "file_name": name,
+                "height": image_shape[0],
+                "width": image_shape[1],
+                "id": 0
+            }
+        ]
+        annotations = []
+        for i, polygon in enumerate(data):
+            annotation = {
+                "id": i,
+                "image_id": 0,
+                "image_slice": int(polygon[0][0]),
+                "category_id": 0,
+                "segmentation": [polygon[:, 1:].flatten().tolist()[::-1]],
+                "area": np.count_nonzero(polygon2mask(image_shape, polygon[:, 1:])),
+                "bbox": [
+                    int(min(polygon[:, 1:][:, 1])),
+                    int(min(polygon[:, 1:][:, 0])),
+                    int(max(polygon[:, 1:][:, 1]) - min(polygon[:, 1:][:, 1])),
+                    int(max(polygon[:, 1:][:, 0]) - min(polygon[:, 1:][:, 0]))
+                ],  # [x, y, width, height]
+                "iscrowd": 0
+            }
+            annotations.append(annotation)
     categories = [
         {
             "id": 0,
